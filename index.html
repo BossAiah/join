@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Answer Sheet • Offline</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Space+Grotesk:wght@500&display=swap');
+        
+        :root { --primary: #0ea5e9; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', system_ui, sans-serif;
+            background: #f8fafc;
+            color: #0f172a;
+        }
+        
+        .header { background: white; border-bottom: 3px solid #0ea5e9; padding: 20px 0; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        .container { max-width: 1280px; margin: 0 auto; padding: 0 20px; }
+        .title { font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 500; letter-spacing: -1px; }
+        
+        .setup { background: white; border-radius: 16px; padding: 24px; margin-bottom: 24px; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); }
+        
+        .mode-tabs { display: flex; background: #f1f5f9; border-radius: 12px; padding: 6px; width: fit-content; margin-bottom: 20px; }
+        .tab { padding: 10px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        .tab.active { background: white; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); color: #0ea5e9; }
+        
+        .questions-container {
+            background: white; border-radius: 16px; padding: 20px;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); max-height: 65vh; overflow-y: auto;
+        }
+        
+        .question-row {
+            display: flex; align-items: center; padding: 18px 20px; border-bottom: 1px solid #f1f5f9; gap: 24px;
+            transition: all 0.3s ease;
+        }
+        .question-row:last-child { border-bottom: none; }
+        .question-row.locked { gap: 12px; } /* tighter when locked */
+        
+        .question-number { font-size: 22px; font-weight: 700; width: 60px; color: #64748b; }
+        
+        .choices { display: flex; gap: 12px; }
+        .choice-btn {
+            width: 62px; height: 62px; border: 3px solid #e2e8f0; border-radius: 9999px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; font-weight: 700; background: white;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer;
+        }
+        .choice-btn:hover { border-color: #0ea5e9; transform: scale(1.05); }
+        .choice-btn.selected {
+            background: #111111;          /* BLACK background */
+            border-color: #111111;
+            color: white;                 /* WHITE text */
+            box-shadow: 0 10px 15px -3px rgba(17, 17, 17, 0.3);
+        }
+        
+        .correct-section { margin-left: auto; display: flex; align-items: center; gap: 12px; font-size: 15px; }
+        .correct-section.locked { display: none; } /* hidden when locked */
+        
+        .footer-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; background: white;
+            border-top: 3px solid #0ea5e9; padding: 16px 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.1); z-index: 50;
+        }
+        
+        /* Cool Progress Bar */
+        .progress-bar-container {
+            width: 280px; height: 12px; background: #e2e8f0; border-radius: 9999px;
+            overflow: hidden; position: relative;
+        }
+        .progress-bar {
+            height: 100%; background: linear-gradient(90deg, #0ea5e9, #22c55e);
+            transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 0 12px rgba(14, 165, 233, 0.6);
+        }
+        .progress-text { font-size: 13px; font-weight: 600; color: #0f172a; margin-left: 12px; }
+        
+        /* Modal for Score */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.5); align-items: center; justify-content: center; z-index: 9999;
+        }
+        .modal-content {
+            background: white; border-radius: 20px; width: 420px; max-width: 90%;
+            box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25); padding: 32px; text-align: center;
+        }
+        
+        /* Receipt PNG - Arial + tighter */
+        #receipt {
+            width: 380px;
+            background: white;
+            padding: 25px 22px;
+            font-family: Arial, sans-serif;
+            font-size: 13.5px;
+            line-height: 1.35;           /* tighter vertical spacing */
+            color: #000;
+            border: 3px dashed #333;
+            margin: 20px auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            display: none;
+        }
+        .receipt-header { text-align: center; border-bottom: 3px double #000; padding-bottom: 10px; margin-bottom: 12px; }
+        .receipt-title { font-size: 18px; font-weight: bold; }
+        .receipt-date { font-size: 12.5px; color: #444; }
+        
+        .receipt-score-top {
+            text-align: center; font-size: 16px; font-weight: bold; margin-bottom: 14px;
+            padding: 8px; background: #f8fafc; border-radius: 8px;
+        }
+        
+        .receipt-row {
+            display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dotted #777;
+        }
+        .q-num { width: 42px; font-weight: bold; }
+        .your-part { flex: 1; font-size: 13.5px; }
+        .correct-part { width: 70px; text-align: right; font-size: 13.5px; } /* less space */
+        
+        .btn {
+            padding: 12px 24px; border-radius: 12px; font-weight: 600; font-size: 15px;
+            cursor: pointer; border: none;
+        }
+        .btn-primary { background: #0ea5e9; color: white; }
+        .btn-primary:hover { background: #0284c8; }
+        .btn-lock { background: #ef4444; color: white; }
+        .btn-lock.unlocked { background: #22c55e; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="background: #0ea5e9; color: white; width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 28px;">📝</div>
+                    <h1 class="title">Quiz Answer Sheet</h1>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <button onclick="saveCurrentQuiz()" class="btn" style="background:#f1f5f9;color:#0f172a;font-size:14px;">💾 Save Quiz</button>
+                    <button onclick="showLoadModal()" class="btn" style="background:#f1f5f9;color:#0f172a;font-size:14px;">📂 Load Saved</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container" style="margin-top: 30px;">
+        <div class="setup">
+            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 220px;">
+                    <label style="display:block; font-size:14px; margin-bottom:6px; color:#64748b;">Exam Name</label>
+                    <input type="text" id="exam-name" value="My Quiz" style="width:100%; padding:14px; border:2px solid #e2e8f0; border-radius:12px; font-size:16px;">
+                </div>
+                <div style="flex: 1; min-width: 220px;">
+                    <label style="display:block; font-size:14px; margin-bottom:6px; color:#64748b;">Date</label>
+                    <input type="text" id="exam-date-display" readonly style="width:100%; padding:14px; border:2px solid #e2e8f0; border-radius:12px; font-size:16px; background:#f8fafc;">
+                </div>
+                <div style="min-width: 180px;">
+                    <label style="display:block; font-size:14px; margin-bottom:6px; color:#64748b;">Items (1-150)</label>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <input type="number" id="num-questions" value="50" min="1" max="150" style="width:110px; padding:12px; text-align:center; font-size:24px; border:2px solid #e2e8f0; border-radius:12px;">
+                        <button onclick="generateSheet()" class="btn btn-primary">Generate / Reset</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mode-tabs">
+            <div onclick="switchMode('answer')" id="tab-answer" class="tab active">📝 Answering Mode</div>
+            <div onclick="switchMode('check')" id="tab-check" class="tab">✅ Checking Mode</div>
+        </div>
+
+        <div class="questions-container" id="questions-container"></div>
+
+        <div class="footer-bar">
+            <div style="display:flex; align-items:center; gap:20px;">
+                <div class="progress-bar-container">
+                    <div id="progress-bar" class="progress-bar" style="width:0%"></div>
+                </div>
+                <div class="progress-text" id="progress-text">0% answered</div>
+                
+                <div style="display:flex; gap:30px; margin-left:20px;">
+                    <div><span style="font-size:13px;color:#64748b;">Answered</span><br><span id="answered-count" style="font-size:24px;font-weight:700;color:#0ea5e9;">0 / 50</span></div>
+                    <div><span style="font-size:13px;color:#64748b;">Blank</span><br><span id="blank-count" style="font-size:24px;font-weight:700;">50</span></div>
+                </div>
+            </div>
+            
+            <div style="display:flex; gap:12px;">
+                <button onclick="showSummary()" class="btn" style="background:#f1f5f9;color:#0f172a;">📋 Summary</button>
+                <button onclick="showScoreModal()" id="calc-score-btn" class="btn btn-primary" style="display:none;">📊 View Score</button>
+                <button onclick="toggleLock()" id="lock-btn" class="btn" style="display:none;">🔒 Lock Answers</button>
+                <button onclick="downloadReceiptPNG()" class="btn btn-primary">📸 Download PNG Receipt</button>
+                <button onclick="clearAllAnswers()" class="btn" style="background:#f1f5f9;color:#0f172a;">🗑️ Clear</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Score Modal -->
+    <div class="modal" id="score-modal">
+        <div class="modal-content">
+            <h2 style="font-size:26px;margin-bottom:16px;">Final Score</h2>
+            <div id="modal-score-circle" style="width:160px;height:160px;border-radius:50%;margin:0 auto 20px;background:conic-gradient(#22c55e 0% 0%,#e2e8f0 0% 100%);display:flex;align-items:center;justify-content:center;font-size:48px;font-weight:700;position:relative;">
+                <div style="text-align:center;line-height:1;">
+                    <div id="modal-score-big">0</div>
+                    <div style="font-size:18px;color:#64748b;">/ <span id="modal-total">50</span></div>
+                </div>
+            </div>
+            <div id="modal-percentage" style="font-size:42px;font-weight:700;margin-bottom:20px;">0%</div>
+            <button onclick="hideScoreModal()" class="btn btn-primary" style="width:100%;">Back to Sheet</button>
+        </div>
+    </div>
+
+    <!-- Load Saved Quizzes Modal -->
+    <div class="modal" id="load-modal">
+        <div class="modal-content" style="width:520px;">
+            <h2 style="margin-bottom:20px;">Saved Quiz Sheets</h2>
+            <div id="saved-list" style="max-height:380px;overflow-y:auto;"></div>
+            <button onclick="hideLoadModal()" class="btn" style="background:#f1f5f9;color:#0f172a;margin-top:20px;width:100%;">Close</button>
+        </div>
+    </div>
+
+    <!-- Receipt for PNG -->
+    <div id="receipt">
+        <div class="receipt-header">
+            <div class="receipt-title" id="receipt-title">QUIZ ANSWER SHEET</div>
+            <div class="receipt-date" id="receipt-date"></div>
+        </div>
+        <div class="receipt-score-top" id="receipt-score-top">SCORE: 0 / 50 (0%)</div>
+        <div id="receipt-items"></div>
+    </div>
+
+    <script>
+        let numQuestions = 50;
+        let userAnswers = [];
+        let correctAnswers = [];
+        let currentMode = 'answer';
+        let answersLocked = false;
+        let savedQuizzes = JSON.parse(localStorage.getItem('savedQuizzes')) || [];
+
+        function setTodayDate() {
+            const dateInput = document.getElementById('exam-date-display');
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            dateInput.value = now.toLocaleDateString('en-US', options);
+        }
+
+        function generateSheet() {
+            const inputNum = parseInt(document.getElementById('num-questions').value);
+            if (isNaN(inputNum) || inputNum < 1 || inputNum > 150) {
+                alert("Number must be between 1 and 150");
+                return;
+            }
+            if (numQuestions !== inputNum && userAnswers.some(a => a !== null)) {
+                if (!confirm("Changing items will reset answers. Continue?")) return;
+            }
+            numQuestions = inputNum;
+            userAnswers = new Array(numQuestions).fill(null);
+            correctAnswers = new Array(numQuestions).fill(null);
+            answersLocked = false;
+            document.getElementById('lock-btn').textContent = '🔒 Lock Answers';
+            document.getElementById('lock-btn').classList.remove('unlocked');
+            renderQuestions();
+            updateFooter();
+        }
+
+        function renderQuestions() {
+            const container = document.getElementById('questions-container');
+            container.innerHTML = '';
+
+            for (let i = 0; i < numQuestions; i++) {
+                const row = document.createElement('div');
+                row.className = `question-row ${answersLocked ? 'locked' : ''}`;
+                row.innerHTML = `<div class="question-number">${i + 1}.</div><div class="choices" id="choices-${i}"></div>`;
+
+                const choicesDiv = row.querySelector(`#choices-${i}`);
+                ['A','B','C','D'].forEach(letter => {
+                    const btn = document.createElement('button');
+                    btn.className = 'choice-btn';
+                    btn.textContent = letter;
+                    btn.onclick = () => handleChoiceClick(i, letter);
+                    choicesDiv.appendChild(btn);
+                });
+
+                if (currentMode === 'check' && !answersLocked) {
+                    const correctHTML = `
+                        <div class="correct-section">
+                            <span>Correct:</span>
+                            <div class="choices" id="correct-${i}" style="gap:10px;"></div>
+                        </div>`;
+                    row.insertAdjacentHTML('beforeend', correctHTML);
+
+                    const correctDiv = row.querySelector(`#correct-${i}`);
+                    ['A','B','C','D'].forEach(letter => {
+                        const btn = document.createElement('button');
+                        btn.className = 'choice-btn';
+                        btn.style.width = '52px'; btn.style.height = '52px'; btn.style.fontSize = '20px';
+                        btn.textContent = letter;
+                        btn.onclick = () => handleCorrectClick(i, letter);
+                        correctDiv.appendChild(btn);
+                    });
+                }
+                container.appendChild(row);
+            }
+            updateAllSelections();
+            document.getElementById('lock-btn').style.display = currentMode === 'check' ? 'inline-block' : 'none';
+        }
+
+        function handleChoiceClick(q, letter) {
+            if (currentMode === 'check' && answersLocked) {
+                alert("Answers are locked.");
+                return;
+            }
+            if (userAnswers[q] !== null && userAnswers[q] !== letter) {
+                if (!confirm(`Change item ${q+1} from ${userAnswers[q]} to ${letter}?`)) return;
+            }
+            userAnswers[q] = (userAnswers[q] === letter) ? null : letter;
+            updateAllSelections();
+            updateFooter();
+        }
+
+        function handleCorrectClick(q, letter) {
+            correctAnswers[q] = (correctAnswers[q] === letter) ? null : letter;
+            updateAllSelections();
+        }
+
+        function updateAllSelections() {
+            for (let i = 0; i < numQuestions; i++) {
+                document.querySelectorAll(`#choices-${i} .choice-btn`).forEach(btn => {
+                    btn.classList.toggle('selected', userAnswers[i] === btn.textContent);
+                });
+                if (currentMode === 'check' && !answersLocked) {
+                    const correctBtns = document.querySelectorAll(`#correct-${i} .choice-btn`);
+                    if (correctBtns.length) correctBtns.forEach(btn => {
+                        btn.classList.toggle('selected', correctAnswers[i] === btn.textContent);
+                    });
+                }
+            }
+        }
+
+        function updateFooter() {
+            const answered = userAnswers.filter(a => a !== null).length;
+            const percent = Math.round((answered / numQuestions) * 100);
+            document.getElementById('answered-count').textContent = `${answered} / ${numQuestions}`;
+            document.getElementById('blank-count').textContent = numQuestions - answered;
+            document.getElementById('progress-bar').style.width = percent + '%';
+            document.getElementById('progress-text').innerHTML = `<span style="color:#22c55e">${percent}%</span> answered`;
+            document.getElementById('calc-score-btn').style.display = currentMode === 'check' ? 'inline-block' : 'none';
+        }
+
+        function switchMode(mode) {
+            currentMode = mode;
+            document.getElementById('tab-answer').classList.toggle('active', mode === 'answer');
+            document.getElementById('tab-check').classList.toggle('active', mode === 'check');
+            renderQuestions();
+            updateFooter();
+        }
+
+        function toggleLock() {
+            answersLocked = !answersLocked;
+            const btn = document.getElementById('lock-btn');
+            if (answersLocked) {
+                btn.textContent = '🔓 Unlock';
+                btn.classList.add('unlocked');
+            } else {
+                btn.textContent = '🔒 Lock Answers';
+                btn.classList.remove('unlocked');
+            }
+            renderQuestions();
+        }
+
+        function showScoreModal() {
+            let correctCount = 0;
+            for (let i = 0; i < numQuestions; i++) {
+                if (userAnswers[i] && userAnswers[i] === correctAnswers[i]) correctCount++;
+            }
+            const percent = Math.round((correctCount / numQuestions) * 100);
+            
+            const circle = document.getElementById('modal-score-circle');
+            circle.style.background = `conic-gradient(#22c55e ${percent}%, #e2e8f0 ${percent}% 100%)`;
+            document.getElementById('modal-score-big').textContent = correctCount;
+            document.getElementById('modal-total').textContent = numQuestions;
+            document.getElementById('modal-percentage').textContent = percent + '%';
+            
+            document.getElementById('score-modal').style.display = 'flex';
+        }
+
+        function hideScoreModal() {
+            document.getElementById('score-modal').style.display = 'none';
+        }
+
+        function saveCurrentQuiz() {
+            const name = document.getElementById('exam-name').value || "Untitled Quiz";
+            const dateStr = document.getElementById('exam-date-display').value;
+            
+            const quizData = {
+                id: Date.now(),
+                name: name,
+                date: dateStr,
+                numQuestions: numQuestions,
+                userAnswers: [...userAnswers],
+                correctAnswers: [...correctAnswers]
+            };
+            
+            savedQuizzes.unshift(quizData);
+            if (savedQuizzes.length > 20) savedQuizzes.pop();
+            localStorage.setItem('savedQuizzes', JSON.stringify(savedQuizzes));
+            alert("✅ Quiz saved successfully!");
+        }
+
+        function showLoadModal() {
+            const listEl = document.getElementById('saved-list');
+            listEl.innerHTML = '';
+            
+            if (savedQuizzes.length === 0) {
+                listEl.innerHTML = `<p style="text-align:center;padding:40px;color:#64748b;">No saved quizzes yet.<br>Click "Save Quiz" after answering.</p>`;
+            } else {
+                savedQuizzes.forEach((quiz, index) => {
+                    const div = document.createElement('div');
+                    div.style = "padding:16px; border-bottom:1px solid #e2e8f0; cursor:pointer; display:flex; justify-content:space-between; align-items:center;";
+                    div.innerHTML = `
+                        <div>
+                            <strong>${quiz.name}</strong><br>
+                            <span style="font-size:13px;color:#64748b;">${quiz.date} • ${quiz.numQuestions} items</span>
+                        </div>
+                        <button onclick="event.stopImmediatePropagation();loadQuiz(${index});" class="btn btn-primary" style="padding:8px 16px;font-size:13px;">Load</button>
+                    `;
+                    div.onclick = () => loadQuiz(index);
+                    listEl.appendChild(div);
+                });
+            }
+            document.getElementById('load-modal').style.display = 'flex';
+        }
+
+        function loadQuiz(index) {
+            const quiz = savedQuizzes[index];
+            numQuestions = quiz.numQuestions;
+            userAnswers = [...quiz.userAnswers];
+            correctAnswers = [...quiz.correctAnswers];
+            document.getElementById('exam-name').value = quiz.name;
+            document.getElementById('exam-date-display').value = quiz.date;
+            document.getElementById('num-questions').value = numQuestions;
+            answersLocked = false;
+            hideLoadModal();
+            renderQuestions();
+            updateFooter();
+            alert(`Loaded: ${quiz.name}`);
+        }
+
+        function hideLoadModal() {
+            document.getElementById('load-modal').style.display = 'none';
+        }
+
+        function showSummary() {
+            let text = `${document.getElementById('exam-name').value}\n${document.getElementById('exam-date-display').value}\n\n`;
+            for (let i = 0; i < numQuestions; i++) {
+                text += `${i+1}. ${userAnswers[i] || '—'}\n`;
+            }
+            alert(text);
+        }
+
+        function clearAllAnswers() {
+            if (confirm("Clear ALL answers?")) {
+                userAnswers.fill(null);
+                renderQuestions();
+                updateFooter();
+            }
+        }
+
+        // PNG Receipt - Arial + tighter + simplified correct answer
+        async function downloadReceiptPNG() {
+            const receipt = document.getElementById('receipt');
+            const titleEl = document.getElementById('receipt-title');
+            const dateEl = document.getElementById('receipt-date');
+            const scoreTop = document.getElementById('receipt-score-top');
+            const itemsEl = document.getElementById('receipt-items');
+
+            titleEl.textContent = (document.getElementById('exam-name').value || "QUIZ").toUpperCase();
+            dateEl.textContent = document.getElementById('exam-date-display').value;
+
+            let correctCount = 0;
+            itemsEl.innerHTML = '';
+
+            for (let i = 0; i < numQuestions; i++) {
+                const user = userAnswers[i] || '—';
+                const correct = correctAnswers[i] || '—';
+                const isCorrect = (user === correct && user !== '—');
+                if (isCorrect) correctCount++;
+
+                const mark = isCorrect ? '✓' : (user !== '—' ? '✗' : '');
+
+                const row = document.createElement('div');
+                row.className = 'receipt-row';
+                row.innerHTML = `
+                    <span class="q-num">${(i+1).toString().padStart(2,'0')}.</span>
+                    <span class="your-part">You: <strong>${user}</strong> <span style="color:${isCorrect?'#006400':'#c00'};">${mark}</span></span>
+                    <span class="correct-part"><strong>${correct}</strong></span>
+                `;
+                itemsEl.appendChild(row);
+            }
+
+            const percent = Math.round((correctCount / numQuestions) * 100);
+            scoreTop.textContent = `SCORE: ${correctCount} / ${numQuestions} (${percent}%)`;
+
+            receipt.style.display = 'block';
+
+            try {
+                const canvas = await html2canvas(receipt, { scale: 2, backgroundColor: '#ffffff' });
+                const link = document.createElement('a');
+                link.download = `quiz-receipt-${new Date().toISOString().slice(0,10)}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            } catch (e) { alert("Could not generate PNG."); }
+
+            receipt.style.display = 'none';
+        }
+
+        function init() {
+            setTodayDate();
+            generateSheet();
+            console.log("%c✅ Quiz Answer Sheet Ready! (Black selected buttons + all new features)", "color:#0ea5e9;font-weight:bold");
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
