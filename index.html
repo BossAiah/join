@@ -1,241 +1,493 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PGBC: Philippine Green Building Code</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Looping Animation | bini · coming soon</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            user-select: none; /* prevents accidental text selection, keeps minimalist */
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f5f5;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        .container {
-            display: flex;
-            height: 100vh;
-            width: 100vw;
-        }
-
-        /* Left Sidebar - 1/8 of canvas */
-        .sidebar {
-            width: 12.5%;
-            min-width: 200px;
-            background: #ffffff;
-            border-right: 1px solid #e0e0e0;
-            overflow-y: auto;
-            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
-        }
-
-        /* Header matching the green in the image */
-        .sidebar-header {
-            background: #4CAF50;
-            color: white;
-            padding: 15px 20px;
-            font-size: 14px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-        }
-
-        /* Category Sections */
-        .category {
-            margin-bottom: 0;
-        }
-
-        .category-title {
-            background: #f9f9f9;
-            color: #333;
-            padding: 12px 20px;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            border-bottom: 1px solid #eee;
-        }
-
-        /* List Items */
-        .item-list {
-            list-style: none;
-        }
-
-        .item {
-            padding: 10px 20px 10px 35px;
-            font-size: 12px;
-            color: #666;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            border-bottom: 1px solid #f5f5f5;
-            position: relative;
-            line-height: 1.4;
-        }
-
-        .item:hover {
-            background: #f0f8f0;
-            color: #4CAF50;
-        }
-
-        .item.active {
-            background: #e8f5e9;
-            color: #2e7d32;
-            border-left: 4px solid #4CAF50;
-        }
-
-        .item.active::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 4px;
-            background: #4CAF50;
-        }
-
-        /* Main Content Area - 7/8 of canvas */
-        .main-content {
-            flex: 1;
-            background: #fafafa;
-            position: relative;
-        }
-
-        .content-frame {
-            width: 100%;
-            height: 100%;
-            border: none;
-            background: white;
-        }
-
-        .placeholder {
+            min-height: 100vh;
+            background: #0a0a0f;
             display: flex;
             align-items: center;
             justify-content: center;
+            font-family: 'Inter', 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* main canvas covers entire background with gradient animation */
+        #gradientCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
             height: 100%;
-            color: #999;
-            font-size: 16px;
+            display: block;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* content container - centered, minimalist, above canvas */
+        .content {
+            position: relative;
+            z-index: 10;
+            display: flex;
             flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+            padding: 1.5rem;
+            width: 100%;
+            max-width: 550px;
+            background: transparent;
         }
 
-        .placeholder-icon {
-            font-size: 48px;
-            margin-bottom: 20px;
-            color: #ddd;
+        /* squares container for both sequences? We'll have two separate rows */
+        .squares-row {
+            display: flex;
+            gap: 1.2rem;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 0.5rem;
         }
 
-        /* Custom scrollbar for sidebar */
-        .sidebar::-webkit-scrollbar {
-            width: 6px;
+        /* individual square style (reusable) */
+        .square {
+            width: 32px;
+            height: 32px;
+            background-color: white;
+            border-radius: 6px;
+            opacity: 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            transition: opacity 0.3s ease-out;
         }
 
-        .sidebar::-webkit-scrollbar-track {
-            background: #f1f1f1;
+        /* special container for the 3-square bini animation (horizontal row) */
+        .bini-squares-row {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            align-items: center;
+            margin-top: 0.5rem;
+            margin-bottom: 1rem;
         }
 
-        .sidebar::-webkit-scrollbar-thumb {
-            background: #c1c1c1;
-            border-radius: 3px;
+        .bini-square {
+            width: 28px;
+            height: 28px;
+            background-color: #ffffff;
+            border-radius: 6px;
+            opacity: 0;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            transition: opacity 0.2s ease-out;
         }
 
-        .sidebar::-webkit-scrollbar-thumb:hover {
-            background: #a1a1a1;
+        /* modern typography for "coming soon" */
+        .coming-soon-text {
+            font-size: 1.8rem;
+            font-weight: 500;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #FFFFFF 0%, #DDDDDD 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            opacity: 0;
+            transform: translateY(6px);
+            transition: opacity 0.8s cubic-bezier(0.2, 0.9, 0.4, 1.1), transform 0.6s ease;
+        }
+
+        .coming-soon-text.reveal {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* bini word styling - modern, elegant, appears after 3 squares */
+        .bini-word {
+            font-size: 1.6rem;
+            font-weight: 460;
+            letter-spacing: 2px;
+            background: linear-gradient(125deg, #f0f0f0 0%, #c0c0c0 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-transform: lowercase;
+            margin-top: 0.25rem;
+            opacity: 0;
+            transform: scale(0.96) translateY(5px);
+            transition: opacity 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.2), transform 0.5s ease;
+            text-align: center;
+        }
+
+        .bini-word.reveal-bini {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+
+        /* small minimal caption */
+        .info {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.4);
+            letter-spacing: 0.3px;
+            font-weight: 400;
+            margin-top: 1.2rem;
+            text-align: center;
+        }
+
+        /* responsive adjustments */
+        @media (max-width: 480px) {
+            .square {
+                width: 24px;
+                height: 24px;
+                border-radius: 5px;
+            }
+            .bini-square {
+                width: 22px;
+                height: 22px;
+            }
+            .squares-row {
+                gap: 0.9rem;
+            }
+            .bini-squares-row {
+                gap: 0.8rem;
+            }
+            .coming-soon-text {
+                font-size: 1.4rem;
+            }
+            .bini-word {
+                font-size: 1.3rem;
+                letter-spacing: 1.5px;
+            }
+        }
+
+        :focus {
+            outline: none;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Left Sidebar Navigation -->
-        <div class="sidebar">
-            <div class="sidebar-header">
-                PGBC: Philippine Green Building Code
-            </div>
-            
-            <!-- ENERGY EFFICIENCY -->
-            <div class="category">
-                <div class="category-title">ENERGY EFFICIENCY</div>
-                <ul class="item-list">
-                    <li class="item" data-file="Minimum SRI for metal roof surfaces - VIZCODE.html">Minimum SRI for metal roof surfaces</li>
-                    <li class="item" data-file="SRI of metal roof surface colors & color coatings - VIZCODE.html">SRI of metal roof surface colors & color coatings</li>
-                    <li class="item" data-file="R-value of common roof insulation (in order) - VIZCODE.html">R-value of common roof insulation (in order)</li>
-                    <li class="item" data-file="Minimum AC System efficiency rate - VIZCODE.html">Minimum AC System efficiency rate</li>
-                    <li class="item" data-file="Escalator Automated Controls - VIZCODE.html">Escalator Automated Controls</li>
-                    <li class="item" data-file="Elevator Lights - VIZCODE.html">Elevator Lights</li>
-                    <li class="item" data-file="Transformer Efficiency Rate - VIZCODE.html">Transformer Efficiency Rate</li>
-                    <li class="item" data-file="Elevated water storage - VIZCODE.html">Elevated water storage</li>
-                    <li class="item" data-file="Water fixture performance requirements - VIZCODE.html">Water fixture performance requirements</li>
-                    <li class="item" data-file="Rainwater harvesting min. tank storage size (cu.m) - VIZCODE.html">Rainwater harvesting min. tank storage size (cu.m)</li>
-                </ul>
-            </div>
 
-            <!-- SOLID WASTE MANAGEMENT -->
-            <div class="category">
-                <div class="category-title">SOLID WASTE MANAGEMENT</div>
-                <ul class="item-list">
-                    <li class="item" data-file="MRF - VIZCODE.html">MRF</li>
-                </ul>
-            </div>
+    <canvas id="gradientCanvas"></canvas>
 
-            <!-- SITE SUSTAINABILITY -->
-            <div class="category">
-                <div class="category-title">SITE SUSTAINABILITY</div>
-                <ul class="item-list">
-                    <li class="item" data-file="Unpaved surface area - VIZCODE.html">Unpaved surface area</li>
-                </ul>
-            </div>
-
-            <!-- AIR QUALITY -->
-            <div class="category">
-                <div class="category-title">AIR QUALITY</div>
-                <ul class="item-list">
-                    <li class="item" data-file="Designated Outdoor Smoking Area - VIZCODE.html">Designated Outdoor Smoking Area</li>
-                </ul>
-            </div>
-        </div>
-
-        <!-- Main Content Area -->
-        <div class="main-content">
-            <div class="placeholder" id="placeholder">
-                <div class="placeholder-icon">📄</div>
-                <div>Select an item from the list to view</div>
-            </div>
-            <iframe class="content-frame" id="contentFrame" style="display: none;"></iframe>
-        </div>
+    <div class="content">
+        <!-- 5 squares loop animation row -->
+        <div class="squares-row" id="squaresContainer"></div>
+        
+        <!-- 3 squares for bini animation (appears within 1 sec) -->
+        <div class="bini-squares-row" id="biniSquaresContainer"></div>
+        
+        <!-- bini word text -->
+        <div class="bini-word" id="biniWord">bini</div>
+        
+        <div class="coming-soon-text" id="comingSoonText">coming soon</div>
+        <div class="info">minimal · loop · bini</div>
     </div>
 
     <script>
-        // Base path for the HTML files
-        const basePath = 'C:/PGBC_Philippine Green Building Code/';
-        
-        // Get all items
-        const items = document.querySelectorAll('.item');
-        const contentFrame = document.getElementById('contentFrame');
-        const placeholder = document.getElementById('placeholder');
-
-        items.forEach(item => {
-            item.addEventListener('click', function() {
-                // Remove active class from all items
-                items.forEach(i => i.classList.remove('active'));
+        (function() {
+            // ----------------------------------------------
+            // 1. Gradient Canvas Setup (looping background)
+            // ----------------------------------------------
+            const canvas = document.getElementById('gradientCanvas');
+            const ctx = canvas.getContext('2d');
+            let timeOffset = 0;
+            let animationFrameId = null;
+            
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                drawGradient();
+            }
+            
+            function drawGradient() {
+                if (!ctx) return;
+                const w = canvas.width;
+                const h = canvas.height;
+                if (w === 0 || h === 0) return;
                 
-                // Add active class to clicked item
-                this.classList.add('active');
+                const t = timeOffset * 0.003;
+                const r1 = Math.sin(t * 0.7) * 0.3 + 0.5;
+                const g1 = Math.sin(t * 0.5 + 2) * 0.25 + 0.45;
+                const b1 = Math.sin(t * 0.9 + 1) * 0.4 + 0.6;
                 
-                // Get the filename
-                const filename = this.getAttribute('data-file');
-                const fullPath = basePath + filename;
+                const r2 = Math.sin(t * 0.4 + 3) * 0.35 + 0.55;
+                const g2 = Math.sin(t * 0.8 + 1.2) * 0.3 + 0.5;
+                const b2 = Math.sin(t * 0.6 + 4) * 0.45 + 0.65;
                 
-                // Show iframe, hide placeholder
-                placeholder.style.display = 'none';
-                contentFrame.style.display = 'block';
+                const r3 = Math.sin(t * 0.5 + 5) * 0.25 + 0.4;
+                const g3 = Math.sin(t * 0.9 + 3.4) * 0.3 + 0.55;
+                const b3 = Math.sin(t * 1.1 + 2.1) * 0.35 + 0.7;
                 
-                // Load the file
-                contentFrame.src = fullPath;
+                const color1 = `rgba(${Math.floor(r1 * 200 + 55)}, ${Math.floor(g1 * 180 + 70)}, ${Math.floor(b1 * 200 + 55)}, 1)`;
+                const color2 = `rgba(${Math.floor(r2 * 190 + 65)}, ${Math.floor(g2 * 170 + 80)}, ${Math.floor(b2 * 190 + 65)}, 1)`;
+                const color3 = `rgba(${Math.floor(r3 * 180 + 75)}, ${Math.floor(g3 * 160 + 90)}, ${Math.floor(b3 * 180 + 75)}, 1)`;
+                
+                const angle = t * 0.5;
+                const x1 = w * (0.3 + Math.sin(angle) * 0.2);
+                const y1 = h * (0.2 + Math.cos(angle * 0.7) * 0.2);
+                const x2 = w * (0.7 + Math.cos(angle) * 0.2);
+                const y2 = h * (0.8 + Math.sin(angle * 0.5) * 0.2);
+                
+                const grad = ctx.createLinearGradient(x1, y1, x2, y2);
+                grad.addColorStop(0, color1);
+                grad.addColorStop(0.55, color2);
+                grad.addColorStop(1, color3);
+                
+                ctx.clearRect(0, 0, w, h);
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, w, h);
+                
+                const centerX = w * (0.5 + Math.sin(t * 0.2) * 0.05);
+                const centerY = h * (0.5 + Math.cos(t * 0.3) * 0.05);
+                const radGrad = ctx.createRadialGradient(centerX, centerY, w * 0.1, centerX - w*0.05, centerY - h*0.05, w * 0.7);
+                radGrad.addColorStop(0, `rgba(255,255,240,0.08)`);
+                radGrad.addColorStop(1, `rgba(10,10,20,0.15)`);
+                ctx.fillStyle = radGrad;
+                ctx.fillRect(0, 0, w, h);
+            }
+            
+            function animateGradient() {
+                timeOffset = (timeOffset + 1) % 3600;
+                drawGradient();
+                animationFrameId = requestAnimationFrame(animateGradient);
+            }
+            
+            window.addEventListener('resize', () => resizeCanvas());
+            resizeCanvas();
+            animateGradient();
+            
+            // ----------------------------------------------
+            // 2. Create 5 squares (infinite loop fade in/out)
+            // ----------------------------------------------
+            const squaresContainer = document.getElementById('squaresContainer');
+            squaresContainer.innerHTML = '';
+            const squares = [];
+            const SQUARE_COUNT = 5;
+            
+            for (let i = 0; i < SQUARE_COUNT; i++) {
+                const sq = document.createElement('div');
+                sq.classList.add('square');
+                sq.style.backgroundColor = '#ffffff';
+                sq.style.opacity = '0';
+                squaresContainer.appendChild(sq);
+                squares.push(sq);
+            }
+            
+            // 3. Create 3 squares for bini (will animate within 1 second total)
+            const biniSquaresContainer = document.getElementById('biniSquaresContainer');
+            biniSquaresContainer.innerHTML = '';
+            const biniSquares = [];
+            const BINI_SQUARE_COUNT = 3;
+            
+            for (let i = 0; i < BINI_SQUARE_COUNT; i++) {
+                const sq = document.createElement('div');
+                sq.classList.add('bini-square');
+                sq.style.backgroundColor = '#f8f9ff';
+                sq.style.opacity = '0';
+                biniSquaresContainer.appendChild(sq);
+                biniSquares.push(sq);
+            }
+            
+            // References for text elements
+            const comingSoonElem = document.getElementById('comingSoonText');
+            const biniWordElem = document.getElementById('biniWord');
+            
+            // ----------------------------------------------
+            // 4. INFINITE LOOP for 5 squares (first thing fading)
+            //    Each square fades in → holds → fades out, staggered, repeats forever.
+            //    Also, after the FIRST full cycle of 5 squares, reveal "coming soon" text.
+            // ----------------------------------------------
+            let firstCycleCompleted = false;
+            let isFiveSquareLoopActive = false;
+            let fiveSquareTimeouts = [];
+            
+            function clearFiveSquareTimeouts() {
+                for (let t of fiveSquareTimeouts) {
+                    clearTimeout(t);
+                }
+                fiveSquareTimeouts = [];
+            }
+            
+            function startFiveSquareLoop() {
+                if (isFiveSquareLoopActive) return;
+                isFiveSquareLoopActive = true;
+                
+                let cycleCount = 0;
+                let currentIndex = 0;
+                
+                function animateNextSquare(index) {
+                    if (index >= SQUARE_COUNT) {
+                        // one full cycle completed
+                        if (!firstCycleCompleted) {
+                            firstCycleCompleted = true;
+                            comingSoonElem.classList.add('reveal');
+                        }
+                        // wait before repeating the loop (0.85s pause)
+                        const pauseTimeout = setTimeout(() => {
+                            // reset all squares to invisible
+                            squares.forEach(sq => {
+                                sq.style.transition = 'opacity 0.2s ease';
+                                sq.style.opacity = '0';
+                            });
+                            // restart loop from first square
+                            animateNextSquare(0);
+                            fiveSquareTimeouts.push(pauseTimeout);
+                        }, 800);
+                        fiveSquareTimeouts.push(pauseTimeout);
+                        return;
+                    }
+                    
+                    const square = squares[index];
+                    square.style.transition = 'opacity 0.38s cubic-bezier(0.2, 0.9, 0.4, 1.2)';
+                    square.style.opacity = '1';
+                    
+                    const fadeInHold = 380; // fade in time ~380ms
+                    const holdDuration = 460;
+                    const fadeOutDuration = 380;
+                    
+                    const fadeOutTimer = setTimeout(() => {
+                        square.style.transition = 'opacity 0.36s cubic-bezier(0.4, 0, 0.2, 1)';
+                        square.style.opacity = '0';
+                        
+                        const nextTimer = setTimeout(() => {
+                            animateNextSquare(index + 1);
+                            fiveSquareTimeouts.push(nextTimer);
+                        }, fadeOutDuration);
+                        fiveSquareTimeouts.push(nextTimer);
+                    }, fadeInHold + holdDuration);
+                    
+                    fiveSquareTimeouts.push(fadeOutTimer);
+                }
+                
+                // start the infinite loop
+                animateNextSquare(0);
+            }
+            
+            // ----------------------------------------------
+            // 5. BINI SQUARES ANIMATION: 3 squares animate within 1 sec total
+            //    "make the 3 squares animate within 1 sec" -> complete fade-in + fade-out (or pop) in 1 sec.
+            //    After that, the word "bini" appears elegantly.
+            //    We also want "bini" word at the end of the animation of 3 squares.
+            //    This will run ONCE when page loads, after a short delay or alongside? but we want it to happen 
+            //    after the 3 squares complete. And to fit minimal style, we run it after the first 5-square cycle? 
+            //    Actually spec says: "put a bini word on the end of the animation of 3 squares. make the 3 squares animate within 1 sec"
+            //    So best to run this 3-square animation once when page is ready, independent of the 5-square loop,
+            //    or maybe it starts after a short delay. We'll trigger it after the 5-square first square appears? 
+            //    But to be elegant, we can start the 3-square animation on load with a slight delay (0.3s) so that both loops 
+            //    feel cohesive. Also the word "bini" appears only after those 3 squares finish.
+            //    We'll ensure the 3 squares finish their entire pop within 1 sec total (fast and modern).
+            // ----------------------------------------------
+            
+            let biniAnimationDone = false;   // to prevent double run
+            let biniWordRevealed = false;
+            
+            function animateThreeSquaresForBini() {
+                if (biniAnimationDone) return;
+                biniAnimationDone = true;
+                
+                // Reset squares opacity
+                biniSquares.forEach(sq => {
+                    sq.style.transition = 'opacity 0.12s linear';
+                    sq.style.opacity = '0';
+                });
+                
+                // We want total sequence time under 1 second for all 3 squares.
+                // For 3 squares: each square fades in quickly, then fades out, but overlapping?
+                // To achieve "animate within 1 sec": we can chain them: square1 fades in+out (0.33s), square2 (0.33s), square3 (0.33s) -> total ~1 sec.
+                // But we need a smooth pop: each square fades in, stays briefly, fades out. 
+                // Let's do: total duration 0.98 seconds for all 3 squares. Each square: fade-in 0.14s, hold 0.06s, fade-out 0.13s -> approx 0.33s per square.
+                // total for 3 squares = 0.99s. That's within 1 sec, and the word appears right after last fade-out.
+                
+                const perSquareDuration = 330; // ms (0.33s)
+                const fadeInTime = 140;
+                const holdTime = 70;
+                const fadeOutTime = 120; // 140+70+120 = 330ms
+                
+                let current = 0;
+                
+                function runNextSquare(index) {
+                    if (index >= BINI_SQUARE_COUNT) {
+                        // all 3 squares finished animation, now reveal "bini" word
+                        if (!biniWordRevealed) {
+                            biniWordRevealed = true;
+                            biniWordElem.classList.add('reveal-bini');
+                        }
+                        return;
+                    }
+                    
+                    const square = biniSquares[index];
+                    // fade in
+                    square.style.transition = `opacity ${fadeInTime}ms cubic-bezier(0.2, 0.9, 0.5, 1.1)`;
+                    square.style.opacity = '1';
+                    
+                    const holdTimeout = setTimeout(() => {
+                        // fade out
+                        square.style.transition = `opacity ${fadeOutTime}ms ease-out`;
+                        square.style.opacity = '0';
+                        
+                        const nextTimeout = setTimeout(() => {
+                            runNextSquare(index + 1);
+                        }, fadeOutTime);
+                        
+                        // store timeout for safety (no conflict with other loops)
+                        if (!window._biniTimeouts) window._biniTimeouts = [];
+                        window._biniTimeouts.push(nextTimeout);
+                    }, fadeInTime + holdTime);
+                    
+                    if (!window._biniTimeouts) window._biniTimeouts = [];
+                    window._biniTimeouts.push(holdTimeout);
+                }
+                
+                runNextSquare(0);
+            }
+            
+            // trigger bini squares animation on load (after a small delay so that page settles, also ensures it doesn't clash)
+            // but we also want that the 3 squares animate at the end? Actually request: "put a bini word on the end of the animation of 3 squares"
+            // The phrase could mean: after the 3 squares finish, the word "bini" appears. Perfect.
+            // Additionally, the 3 squares animate within 1 second. We'll start this sequence after 400ms after load for a seamless intro.
+            setTimeout(() => {
+                animateThreeSquaresForBini();
+            }, 400);
+            
+            // ----------------------------------------------
+            // 6. Additional: start 5 squares infinite loop (first thing fading)
+            // ----------------------------------------------
+            startFiveSquareLoop();
+            
+            // ----------------------------------------------
+            // 7. Ensure that the bini word does not conflict with coming soon text, both coexist minimalist
+            // ----------------------------------------------
+            // Also small extra: If the 5-square first cycle reveals coming soon text, it's fine.
+            // The bini word appears separately and stays visible.
+            // Additionally, we can add a tiny micro interaction: the bini word appears only once, but the 3 squares animation
+            // does not loop, because it's meant as a one-time intro showcasing "bini" word at the end.
+            // However if we want to be fully aligned with "looping animation website" the 5 squares loop infinitely, and bini + 3 squares appear only once as a highlight. That's elegant.
+            
+            // ----------------------------------------------
+            // 8. Cleanup on page unload (optional)
+            // ----------------------------------------------
+            window.addEventListener('beforeunload', () => {
+                if (animationFrameId) cancelAnimationFrame(animationFrameId);
+                clearFiveSquareTimeouts();
+                if (window._biniTimeouts) {
+                    for (let t of window._biniTimeouts) clearTimeout(t);
+                }
             });
-        });
+            
+            // For responsive transitions: ensure squares maintain shape
+            // Also if the user wants to re-run bini squares? Not needed, but we make robust.
+            // Since 3-square animation is one-time but no issue.
+            console.log('Loops ready: 5 squares infinite, 3 squares bini animation within 1 sec, word appears.');
+        })();
     </script>
 </body>
 </html>
